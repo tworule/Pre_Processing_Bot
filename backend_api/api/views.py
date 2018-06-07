@@ -24,12 +24,11 @@ def data_load(table_name): # table_name : bigquery table name (raw_crime, raw_pr
     q = "select * " + "from [hackerton-206409:hackerton." + table_name + "]"
     data = pandas.read_gbq(query = q, project_id = 'hackerton-206409')
     return(data)
-    
+
 
 """ FILTERING : ~~ 열들만 보여줘! / ~~ 열들은 빼줘! """
 def col_filtering(table_name, ex_or_include, col_name_list): # table_name : test1 or test2 or test3
     dataset = data_load(table_name)
-    col_name_list = col_name_list.split(',')
 
     if ex_or_include == 'exclude':
         for i in col_name_list:
@@ -43,15 +42,11 @@ def col_filtering(table_name, ex_or_include, col_name_list): # table_name : test
         dataset = dataset[col_name_list]
         return(dataset)
 
+
 def row_filtering(table_name, what_value, which_col = 'all'):
     dataset = data_load(table_name)
-
-    if what_value == 'null' or what_value == 'na':
-        dataset = dataset.dropna()
-        return(dataset)
-    else:
-        dataset = dataset[dataset[which_col] == what_value]
-        return(dataset)
+    dataset = dataset[dataset[which_col] != what_value]
+    return(dataset)
 
 
 """ GROUP_BY """
@@ -70,14 +65,12 @@ def group_by(table_name, col_name, sum_or_mean):
 """ UNIFICATION ADDRESS """
 def unification_address(table_name, col_name, unit):
     dataset = data_load(table_name)
-    address_mapping_file = open('/home/kyubum/workspace/Hackerton/backend_api/api/address_mapping.json').read()
-    address_mapping = json.loads(address_mapping_file)
 
-    if unit == '시':
+    if unit == '시단위' or unit == '시 단위':
         pass
-    elif unit == '동':
+    elif unit == '동단위' or unit == '동 단위':
         pass
-    elif unit == '구':
+    elif unit == '구단위' or unit == '구 단위':
         for i in range(len(dataset)):
             if dataset[col_name][i].split(' ')[1] == '구로구':
                 dataset[col_name][i] = '구로'
@@ -90,10 +83,10 @@ def unification_address(table_name, col_name, unit):
 def join(table_name1, col_name1, table_name2, col_name2, how): #how :inner, outer
     dataset1 = data_load(table_name1)
     dataset2 = data_load(table_name2)
+
     joined_dataset = pandas.merge(dataset1, dataset2, how = how, left_on = [col_name1], right_on = [col_name2])
     del joined_dataset[col_name2]
     return(joined_dataset)
-
 
 """ Save_bq 분기 """
 def save_bq2(dataset, in_table_name):
@@ -101,7 +94,6 @@ def save_bq2(dataset, in_table_name):
         save_bq(dataset, 'test1')
     elif in_table_name == 'raw_price' or in_table_name == 'test2':
         save_bq(dataset, 'test2')
-
 
 #################################################################
 # Get & Response
@@ -115,12 +107,29 @@ def index(request):
         result = "..Done.."
 
     elif request.GET['function'] == 'col_filtering':
-        dataset = col_filtering(request.GET["table_name"], request.GET["ex_or_include"], request.GET["col_name_list"])
+        col_name_list = request.GET["col_name_list"]
+        col_name_list = col_name_list.split(',')
+
+        for i in range(len(col_name_list)):
+            if col_name_list[i] == 'occurorarrest':
+                col_name_list[i] = 'occur_or_arrest'
+            elif col_name_list[i] == 'houseprice':
+                col_name_list[i] = 'house_price'
+            else:
+                continue
+
+        dataset = col_filtering(request.GET["table_name"], request.GET["ex_or_include"], col_name_list = col_name_list)
         save_bq2(dataset, request.GET["table_name"])
         result = "..Done.."
 
     elif request.GET['function'] == 'row_filtering':
-        dataset = row_filtering(request.GET["table_name"], request.GET["what_value"], request.GET["which_col"])
+        which_col = request.GET["which_col"]
+        if which_col == 'occurorarrest':
+            which_col = 'occur_or_arrest'
+        else:
+            which_col = request.GET["which_col"]
+
+        dataset = row_filtering(request.GET["table_name"], request.GET["what_value"], which_col=which_col)
         save_bq2(dataset, request.GET['table_name'])
         result = "..Done.."
 
@@ -140,3 +149,5 @@ def index(request):
         result = "..Done.."
     
     return HttpResponse(result)
+
+

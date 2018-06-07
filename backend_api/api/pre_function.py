@@ -3,7 +3,6 @@ from pandas import read_csv, DataFrame, Series
 from pandas.io import gbq
 import time
 from datetime import datetime
-import shapefile
 import json
 import operator
 
@@ -66,8 +65,6 @@ def group_by(table_name, col_name, sum_or_mean):
 def unification_address(table_name, col_name, unit):
     dataset = table_name
     #dataset = data_load(table_name)
-    address_mapping_file = open('/home/kyubum/workspace/Hackerton/backend_api/api/address_mapping.json').read()
-    address_mapping = json.loads(address_mapping_file)
 
     if unit == '시':
         pass
